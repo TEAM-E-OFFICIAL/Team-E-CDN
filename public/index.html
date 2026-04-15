@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team E CDN</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Team E CDN</h1>
+
+    <div class="section">
+      <h2>Create Password Protected Folder</h2>
+      <input type="text" id="folderName" placeholder="Folder name">
+      <input type="password" id="folderPass" placeholder="Password">
+      <button onclick="createFolder()">Create Folder</button>
+    </div>
+
+    <div class="section">
+      <h2>Upload File</h2>
+      <input type="text" id="uploadFolder" placeholder="Folder name">
+      <input type="password" id="uploadPass" placeholder="Folder password">
+      <input type="file" id="fileInput">
+      <button onclick="uploadFile()">Upload</button>
+    </div>
+
+    <div class="section">
+      <h2>Browse Folder</h2>
+      <input type="text" id="listFolder" placeholder="Folder name">
+      <input type="password" id="listPass" placeholder="Password">
+      <button onclick="listFiles()">List Files</button>
+
+      <div id="fileList"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
