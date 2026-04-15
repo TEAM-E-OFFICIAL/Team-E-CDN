@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team E CDN • Password Protected</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0f0f0f; color: #e5e5e5; margin: 0; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { color: #a855f7; text-align: center; }
+    .section { background: #171717; padding: 20px; margin: 20px 0; border-radius: 12px; border: 1px solid #222; }
+    input, button { padding: 12px; margin: 8px 4px; border-radius: 8px; border: none; width: 100%; max-width: 400px; }
+    input { background: #1a1a1a; color: white; }
+    button { background: #7c3aed; color: white; cursor: pointer; font-weight: bold; }
+    button:hover { background: #a855f7; }
+    #files { margin-top: 15px; }
+    .file-link { display: block; padding: 10px; color: #7c3aed; text-decoration: none; }
+    .file-link:hover { background: #222; border-radius: 6px; }
+    .status { margin: 10px 0; padding: 10px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Team E CDN</h1>
+    <p style="text-align:center;color:#9ca3af;">Password-protected file sharing • Static on GitHub Pages</p>
+
+    <div class="section">
+      <h2>Access Folder</h2>
+      <input type="password" id="accessPass" placeholder="Enter folder password" onkeydown="if(event.key==='Enter') accessFolder()">
+      <button onclick="accessFolder()">Open Folder</button>
+      <div id="accessStatus" class="status"></div>
+      <div id="fileList"></div>
+    </div>
+
+    <div class="section">
+      <h2>Upload (Manual via Git for now)</h2>
+      <p style="color:#9ca3af;font-size:14px;">
+        On pure GitHub Pages, direct uploads aren't possible.<br>
+        <strong>How to add files:</strong><br>
+        1. Create a folder named after your password hash (use the tool below)<br>
+        2. Commit files to that folder in your repo<br>
+        3. Share the password with trusted people
+      </p>
+      <input type="password" id="hashPass" placeholder="Password to generate folder name">
+      <button onclick="generateFolderHash()">Generate Folder Hash</button>
+      <div id="hashResult" style="margin-top:10px; word-break:break-all; background:#111; padding:10px; border-radius:6px; font-family:monospace;"></div>
+    </div>
+  </div>
+
+  <script>
+    // Simple SHA-256 (using Web Crypto API)
+    async function sha256(message) {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function generateFolderHash() {
+      const pass = document.getElementById('hashPass').value.trim();
+      if (!pass) return alert("Enter a password");
+      
+      const hash = await sha256(pass);
+      const shortHash = hash.substring(0, 16); // Use first 16 chars for folder name
+      
+      document.getElementById('hashResult').innerHTML = `
+        <strong>Folder name to create in repo:</strong><br>
+        <code>${shortHash}</code><br><br>
+        Put your files inside: <code>/${shortHash}/yourfile.zip</code><br>
+        Full URL example: https://yourusername.github.io/your-repo/${shortHash}/yourfile.zip
+      `;
+    }
+
+    async function accessFolder() {
+      const pass = document.getElementById('accessPass').value.trim();
+      const status = document.getElementById('accessStatus');
+      const list = document.getElementById('fileList');
+      
+      if (!pass) {
+        status.innerHTML = '<span style="color:red">Enter password</span>';
+        return;
+      }
+
+      status.innerHTML = 'Verifying...';
+      list.innerHTML = '';
+
+      try {
+        const hash = await sha256(pass);
+        const folder = hash.substring(0, 16);
+
+        // Try to load a manifest or list files (in real setup, you can have index.json in each folder)
+        // For simplicity, show instructions + example link
+        status.innerHTML = `<span style="color:#22c55e">✅ Folder unlocked: <code>${folder}</code></span>`;
+
+        list.innerHTML = `
+          <p><strong>Files in this folder:</strong></p>
+          <div style="color:#9ca3af">
+            Add files manually to the <code>/${folder}/</code> folder in your GitHub repo.<br>
+            Once added and committed, they will appear here (refresh after push).
+          </div>
+          <p style="margin-top:15px"><em>Example link (replace with real files):</em></p>
+          <a href="${folder}/example-file.txt" class="file-link" target="_blank">example-file.txt</a>
+        `;
+      } catch(e) {
+        status.innerHTML = '<span style="color:red">Error</span>';
+      }
+    }
+  </script>
+</body>
+</html>
