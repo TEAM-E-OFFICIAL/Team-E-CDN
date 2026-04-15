@@ -3,108 +3,195 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Team E CDN • Password Protected</title>
+  <title>Team E CDN • Auto Upload</title>
   <style>
     body { font-family: Arial, sans-serif; background: #0f0f0f; color: #e5e5e5; margin: 0; padding: 20px; }
-    .container { max-width: 800px; margin: 0 auto; }
+    .container { max-width: 900px; margin: 0 auto; }
     h1 { color: #a855f7; text-align: center; }
     .section { background: #171717; padding: 20px; margin: 20px 0; border-radius: 12px; border: 1px solid #222; }
-    input, button { padding: 12px; margin: 8px 4px; border-radius: 8px; border: none; width: 100%; max-width: 400px; }
-    input { background: #1a1a1a; color: white; }
+    input, button, textarea { padding: 12px; margin: 8px 4px; border-radius: 8px; border: none; }
+    input, textarea { background: #1a1a1a; color: white; width: 100%; max-width: 500px; }
     button { background: #7c3aed; color: white; cursor: pointer; font-weight: bold; }
     button:hover { background: #a855f7; }
-    #files { margin-top: 15px; }
-    .file-link { display: block; padding: 10px; color: #7c3aed; text-decoration: none; }
-    .file-link:hover { background: #222; border-radius: 6px; }
-    .status { margin: 10px 0; padding: 10px; border-radius: 6px; }
+    .status { padding: 12px; border-radius: 8px; margin: 10px 0; font-size: 14px; }
+    .file-list a { color: #7c3aed; display: block; padding: 8px; text-decoration: none; }
+    .file-list a:hover { background: #222; border-radius: 6px; }
+    code { background: #111; padding: 2px 6px; border-radius: 4px; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Team E CDN</h1>
-    <p style="text-align:center;color:#9ca3af;">Password-protected file sharing • Static on GitHub Pages</p>
+    <p style="text-align:center;color:#9ca3af;">Automatic password-protected folders • Direct upload to GitHub</p>
 
+    <!-- Token Setup -->
     <div class="section">
-      <h2>Access Folder</h2>
-      <input type="password" id="accessPass" placeholder="Enter folder password" onkeydown="if(event.key==='Enter') accessFolder()">
-      <button onclick="accessFolder()">Open Folder</button>
-      <div id="accessStatus" class="status"></div>
-      <div id="fileList"></div>
+      <h2>1. GitHub Token (One-time)</h2>
+      <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+      <button onclick="saveToken()">Save Token</button>
+      <div id="tokenStatus" class="status"></div>
     </div>
 
+    <!-- Upload Section -->
     <div class="section">
-      <h2>Upload (Manual via Git for now)</h2>
-      <p style="color:#9ca3af;font-size:14px;">
-        On pure GitHub Pages, direct uploads aren't possible.<br>
-        <strong>How to add files:</strong><br>
-        1. Create a folder named after your password hash (use the tool below)<br>
-        2. Commit files to that folder in your repo<br>
-        3. Share the password with trusted people
-      </p>
-      <input type="password" id="hashPass" placeholder="Password to generate folder name">
-      <button onclick="generateFolderHash()">Generate Folder Hash</button>
-      <div id="hashResult" style="margin-top:10px; word-break:break-all; background:#111; padding:10px; border-radius:6px; font-family:monospace;"></div>
+      <h2>2. Upload File (Auto Creates Folder)</h2>
+      <input type="password" id="folderPass" placeholder="Folder Password (keeps files private)">
+      <input type="file" id="fileInput">
+      <button onclick="uploadFile()">Upload to Protected Folder</button>
+      <div id="uploadStatus" class="status"></div>
+    </div>
+
+    <!-- Access / List Files -->
+    <div class="section">
+      <h2>3. Access Folder</h2>
+      <input type="password" id="accessPass" placeholder="Enter folder password" onkeydown="if(event.key==='Enter') listFiles()">
+      <button onclick="listFiles()">Show Files</button>
+      <div id="accessStatus" class="status"></div>
+      <div id="fileList" class="file-list"></div>
     </div>
   </div>
 
   <script>
-    // Simple SHA-256 (using Web Crypto API)
-    async function sha256(message) {
-      const msgBuffer = new TextEncoder().encode(message);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const OWNER = "TEAM-E-OFFICIAL";
+    const REPO = "Team-E-CDN";
+    const BRANCH = "main";
+
+    async function sha256(str) {
+      const buf = new TextEncoder().encode(str);
+      const hash = await crypto.subtle.digest('SHA-256', buf);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
     }
 
-    async function generateFolderHash() {
-      const pass = document.getElementById('hashPass').value.trim();
-      if (!pass) return alert("Enter a password");
-      
-      const hash = await sha256(pass);
-      const shortHash = hash.substring(0, 16); // Use first 16 chars for folder name
-      
-      document.getElementById('hashResult').innerHTML = `
-        <strong>Folder name to create in repo:</strong><br>
-        <code>${shortHash}</code><br><br>
-        Put your files inside: <code>/${shortHash}/yourfile.zip</code><br>
-        Full URL example: https://yourusername.github.io/your-repo/${shortHash}/yourfile.zip
-      `;
+    function saveToken() {
+      const token = document.getElementById('githubToken').value.trim();
+      if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+        document.getElementById('tokenStatus').innerHTML = '<span style="color:red">Invalid token format. Should start with ghp_ or github_pat_</span>';
+        return;
+      }
+      localStorage.setItem('te_cdn_token', token);
+      document.getElementById('tokenStatus').innerHTML = '<span style="color:#22c55e">✅ Token saved in browser</span>';
     }
 
-    async function accessFolder() {
-      const pass = document.getElementById('accessPass').value.trim();
+    async function getToken() {
+      let token = localStorage.getItem('te_cdn_token');
+      if (!token) {
+        token = prompt("Enter your GitHub Personal Access Token (ghp_...)");
+        if (token) localStorage.setItem('te_cdn_token', token);
+      }
+      return token;
+    }
+
+    async function uploadFile() {
+      const password = document.getElementById('folderPass').value.trim();
+      const fileInput = document.getElementById('fileInput');
+      const status = document.getElementById('uploadStatus');
+
+      if (!password || !fileInput.files[0]) {
+        status.innerHTML = '<span style="color:red">Password and file are required</span>';
+        return;
+      }
+
+      const token = await getToken();
+      if (!token) return;
+
+      const file = fileInput.files[0];
+      const hash = await sha256(password);
+      const folder = hash.substring(0, 20);           // Secure folder name
+      const filePath = `${folder}/${file.name}`;
+
+      status.innerHTML = 'Reading file...';
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const content = btoa(new Uint8Array(e.target.result).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+
+        try {
+          status.innerHTML = `Uploading to folder <code>${folder}</code>...`;
+
+          const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${filePath}`, {
+            method: 'PUT',
+            headers: {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              message: `Team E CDN: Upload ${file.name} to protected folder`,
+              content: content,
+              branch: BRANCH
+            })
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            status.innerHTML = `<span style="color:#22c55e">✅ Uploaded successfully!<br>
+              Folder: <code>${folder}</code><br>
+              File: <a href="https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${filePath}" target="_blank">${file.name}</a></span>`;
+          } else {
+            status.innerHTML = `<span style="color:red">Error: ${data.message || 'Upload failed'}</span>`;
+          }
+        } catch (err) {
+          status.innerHTML = `<span style="color:red">Network error: ${err.message}</span>`;
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    async function listFiles() {
+      const password = document.getElementById('accessPass').value.trim();
       const status = document.getElementById('accessStatus');
-      const list = document.getElementById('fileList');
-      
-      if (!pass) {
+      const listDiv = document.getElementById('fileList');
+
+      if (!password) {
         status.innerHTML = '<span style="color:red">Enter password</span>';
         return;
       }
 
-      status.innerHTML = 'Verifying...';
-      list.innerHTML = '';
+      const hash = await sha256(password);
+      const folder = hash.substring(0, 20);
+      status.innerHTML = `Loading folder <code>${folder}</code>...`;
+      listDiv.innerHTML = '';
 
       try {
-        const hash = await sha256(pass);
-        const folder = hash.substring(0, 16);
+        const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${folder}?ref=${BRANCH}`, {
+          headers: { 'Accept': 'application/vnd.github+json' }
+        });
 
-        // Try to load a manifest or list files (in real setup, you can have index.json in each folder)
-        // For simplicity, show instructions + example link
+        if (res.status === 404) {
+          status.innerHTML = `<span style="color:orange">Folder not found yet. Upload a file first.</span>`;
+          return;
+        }
+
+        const files = await res.json();
+
+        if (!Array.isArray(files)) {
+          status.innerHTML = `<span style="color:red">Not a folder or error occurred.</span>`;
+          return;
+        }
+
         status.innerHTML = `<span style="color:#22c55e">✅ Folder unlocked: <code>${folder}</code></span>`;
 
-        list.innerHTML = `
-          <p><strong>Files in this folder:</strong></p>
-          <div style="color:#9ca3af">
-            Add files manually to the <code>/${folder}/</code> folder in your GitHub repo.<br>
-            Once added and committed, they will appear here (refresh after push).
-          </div>
-          <p style="margin-top:15px"><em>Example link (replace with real files):</em></p>
-          <a href="${folder}/example-file.txt" class="file-link" target="_blank">example-file.txt</a>
-        `;
-      } catch(e) {
-        status.innerHTML = '<span style="color:red">Error</span>';
+        let html = '<h3>Files:</h3>';
+        files.forEach(f => {
+          if (f.type === 'file') {
+            const rawUrl = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${folder}/${f.name}`;
+            html += `<a href="${rawUrl}" target="_blank">${f.name} (${(f.size/1024).toFixed(1)} KB)</a>`;
+          }
+        });
+        listDiv.innerHTML = html || '<p>No files yet.</p>';
+
+      } catch (err) {
+        status.innerHTML = `<span style="color:red">Error loading folder</span>`;
       }
     }
+
+    // Auto-load token status
+    window.onload = () => {
+      if (localStorage.getItem('te_cdn_token')) {
+        document.getElementById('tokenStatus').innerHTML = '<span style="color:#22c55e">Token already saved</span>';
+      }
+    };
   </script>
 </body>
 </html>
